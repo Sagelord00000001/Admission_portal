@@ -5,7 +5,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 export async function POST(request) {
   // Create a temporary directory in the project root
-  const tempDir = path.join(process.cwd(), 'temp-uploads');
+  const tempDir = path.join('/tmp', 'temp-uploads');
   let attachments = [];
 
   try {

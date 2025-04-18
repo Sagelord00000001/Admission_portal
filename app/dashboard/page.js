@@ -466,9 +466,21 @@ export default function AdmissionPortal() {
                     <option value="">Select Course</option>
                     <option value="computer-science">Computer Science</option>
                     <option value="business-admin">Business Administration</option>
-                    <option value="electrical-eng">Electrical Engineering</option>
-                    <option value="medicine">Medicine</option>
-                    <option value="law">Law</option>
+                    <option value="accounting">Accounting</option>
+                    <option value="banking-finance">Banking & Finance</option>
+                    <option value="human-resource">Human Resource Management</option>
+                    <option value="public-admin">Public Administration</option>
+                    <option value="information-tech">Information Technology</option>
+                    <option value="political-science">Political Science</option>
+                    <option value="international-relation">International Relations</option>
+                    <option value="psychology">Psychology</option>
+                    <option value="mass-communication">Mass Communication</option>
+                    <option value="economics">Economics</option>
+                    <option value="estate-management">Estate Management</option>
+                    <option value="biomedical-science">Biomedical Science</option>
+                    <option value="medical-laboratory">Medical Laboratory Science</option>
+                    <option value="microbiology">Microbiology</option>
+                    <option value="biochemistry">Biochemistry</option>
                   </select>
                 </div>
 
