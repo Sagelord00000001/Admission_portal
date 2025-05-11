@@ -1,150 +1,344 @@
-'use client';
+"use client"
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState } from "react"
+import { useRouter } from "next/navigation"
+import PaystackPayment from "../components/paystack-payment"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Loader2 } from "lucide-react"
 
 export default function AdmissionPortal() {
-  const [step, setStep] = useState(1);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState(null);
+  const [step, setStep] = useState(1)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState(null)
+  const [debugInfo, setDebugInfo] = useState(null) // For debugging purposes
+  const [paymentStatus, setPaymentStatus] = useState({
+    paid: false,
+    reference: "",
+    verifying: false,
+  })
   const [formData, setFormData] = useState({
     // Personal Information
-    firstName: '',
-    middleName: '',
-    lastName: '',
-    dob: '',
-    gender: '',
-    nationality: '',
-    stateOfOrigin: '',
-    contactAddress: '',
-    email: '',
-    phone: '',
+    firstName: "",
+    middleName: "",
+    lastName: "",
+    dob: "",
+    gender: "",
+    nationality: "",
+    stateOfOrigin: "",
+    contactAddress: "",
+    email: "",
+    phone: "",
     photo: null,
 
     // Academic Information
-    highestEducation: '',
-    previousInstitutions: '',
-    graduationYear: '',
+    highestEducation: "",
+    previousInstitutions: "",
+    graduationYear: "",
     examResults: null,
-    certifications: '',
+    certifications: "",
 
     // Program Selection
-    desiredCourse: '',
-    studyMode: 'full-time',
+    desiredCourse: "",
+    studyMode: "full-time",
+    desiredProgram: "",
 
     // Parent/Guardian
-    guardianName: '',
-    guardianRelationship: '',
-    guardianPhone: '',
-    guardianEmail: '',
-    guardianAddress: '',
+    guardianName: "",
+    guardianRelationship: "",
+    guardianPhone: "",
+    guardianEmail: "",
+    guardianAddress: "",
 
     // Additional Info
-    heardAboutUs: '',
-    specialNeeds: '',
+    heardAboutUs: "",
+    specialNeeds: "",
 
     // Declaration
     agreeTerms: false,
-    signature: '',
+    signature: "",
 
     // Payment
-    paymentMethod: '',
-    paymentProof: null
-  });
+    paymentMethod: "",
+    paymentProof: null,
+  })
 
-  const router = useRouter();
+  const router = useRouter()
+
+  // Safe error handling with debug info
+  const handleError = (error) => {
+    console.error("Error:", error)
+    setError(error?.message || "An unexpected error occurred. Please try again.")
+
+    // Store debug info for development
+    if (process.env.NODE_ENV === "development") {
+      setDebugInfo({
+        message: error?.message,
+        stack: error?.stack,
+        time: new Date().toISOString(),
+      })
+    }
+
+    window.scrollTo(0, 0)
+  }
 
   const handleChange = (e) => {
-    const { name, value, type, checked, files } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : type === 'file' ? files[0] : value
-    }));
-  };
+    try {
+      const { name, value, type, checked, files } = e.target
+      setFormData((prev) => ({
+        ...prev,
+        [name]: type === "checkbox" ? checked : type === "file" ? files?.[0] || null : value,
+      }))
+    } catch (error) {
+      handleError(error)
+    }
+  }
 
   const validateForm = () => {
     // Basic validation - expand as needed
-    if (!formData.firstName || !formData.lastName) {
-      return 'First and last name are required';
+    if (!formData.firstName) {
+      return "First name is required";
+    }
+    if (!formData.lastName) {
+      return "Last name is required";
     }
     if (!formData.email || !/^\S+@\S+\.\S+$/.test(formData.email)) {
-      return 'Valid email is required';
+      return "Valid email is required";
+    }
+    if (!formData.dob) {
+      return "Date of birth is required";
+    }
+    if (!formData.gender) {
+      return "Gender is required";
+    }
+    if (!formData.nationality) {
+      return "Nationality is required";
+    }
+    if (!formData.stateOfOrigin) {
+      return "State of origin is required";
+    }
+    if (!formData.contactAddress) {
+      return "Contact address is required";
+    }
+    if (!formData.phone) {
+      return "Phone number is required";
+    }
+    if (!formData.photo) {
+      return "Passport photograph is required";
+    }
+    if (!formData.highestEducation) {
+      return "Highest education level is required";
+    }
+    if (!formData.previousInstitutions) {
+      return "Previous institutions are required";
+    }
+    if (!formData.graduationYear) {
+      return "Graduation year is required";
+    }
+    if (!formData.examResults) {
+      return "Exam results are required";
+    }
+    if (!formData.desiredCourse) {
+      return "Desired course is required";
+    }
+    if (!formData.desiredProgram) {
+      return "Desired program is required";
+    }
+    if (!formData.studyMode) {
+      return "Study mode is required";
+    }
+    if (!formData.guardianName) {
+      return "Guardian name is required";
+    }
+    if (!formData.guardianRelationship) {
+      return "Guardian relationship is required";
+    }
+    if (!formData.guardianPhone) {
+      return "Guardian phone number is required";
+    }
+    if (!formData.guardianEmail) {
+      return "Guardian email is required";
+    }
+    if (!formData.guardianAddress) {
+      return "Guardian address is required";
+    }
+    if (!formData.heardAboutUs) {
+      return "Please specify how you heard about us";
     }
     if (!formData.agreeTerms) {
-      return 'You must agree to the terms and conditions';
+      return "You must agree to the terms and conditions";
+    }
+    if (!formData.signature) {
+      return "Electronic signature is required";
     }
     return null;
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setIsSubmitting(true);
-    setError(null);
-
-    // 1. Validate all form fields
-    const validationError = validateForm();
-    if (validationError) {
-      setError(validationError);
-      setIsSubmitting(false);
-      window.scrollTo(0, 0);
-      return;
-    }
-
-    // 2. Strict payment verification
-    if (!formData.paymentMethod) {
-      setError("Please select a payment method");
-      setIsSubmitting(false);
-      window.scrollTo(0, 0);
-      return;
-    }
-
-    if (formData.paymentMethod === 'bank-transfer' && !formData.paymentProof) {
-      setError("Please upload payment proof before submitting");
-      setIsSubmitting(false);
-      window.scrollTo(0, 0);
-      return;
-    }
-
+  const handlePaystackSuccess = async (reference) => {
     try {
-      // 3. Prepare form data
-      const formDataToSend = new FormData();
-      Object.entries(formData).forEach(([key, value]) => {
-        if (value !== null && value !== undefined) {
-          formDataToSend.append(key, value instanceof File ? value : String(value));
-        }
+      console.log('Starting payment verification for reference:', reference);
+      
+      setPaymentStatus({
+        ...paymentStatus,
+        reference,
+        verifying: true,
       });
-
-      // 4. Submit to API
-      const response = await fetch('/api/send-application-email', {
-        method: 'POST',
-        body: formDataToSend,
+  
+      const verifyResponse = await fetch("/api/verify-payment", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ reference }),
       });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(errorText || "Submission failed. Please try again.");
+  
+      console.log('Verification response status:', verifyResponse.status);
+      
+      const verifyData = await verifyResponse.json();
+      console.log('Verification response data:', verifyData);
+  
+      if (!verifyResponse.ok || !verifyData.success) {
+        const errorMsg = verifyData.error || "Payment verification failed";
+        console.error('Verification failed:', errorMsg);
+        throw new Error(errorMsg);
       }
-
-      const data = await response.json();
-      if (!data.success) {
-        throw new Error(data.error || "Submission failed.");
-      }
-
-      // 5. Only proceed to confirmation after successful submission
-      setStep(9); // Add a new success step
-
+  
+      // Payment verified successfully
+      setPaymentStatus({
+        paid: true,
+        reference,
+        verifying: false,
+      });
+  
+      // Automatically submit the form after successful payment
+      await submitFormAfterPayment(reference);
     } catch (error) {
-      console.error("Error:", error);
-      setError(error.message);
-      window.scrollTo(0, 0);
-    } finally {
-      setIsSubmitting(false);
+      console.error('Full verification error:', {
+        message: error.message,
+        stack: error.stack,
+        time: new Date().toISOString()
+      });
+      setError(`Payment verification failed: ${error.message}`);
+      setPaymentStatus({
+        ...paymentStatus,
+        verifying: false,
+      });
     }
   };
+  const handlePaystackClose = () => {
+    // Payment was canceled
+    setError("Payment was canceled. Please try again to complete your application.")
+  }
 
+  const submitFormAfterPayment = async (reference) => {
+    try {
+      setIsSubmitting(true)
+      setError(null)
 
-  const nextStep = () => setStep(prev => prev + 1);
-  const prevStep = () => setStep(prev => prev - 1);
+      // Prepare form data
+      const formDataToSend = new FormData()
+
+      // Add payment verification details
+      formDataToSend.append("paymentReference", reference)
+      formDataToSend.append("paymentVerified", "true")
+
+      // Add all other form fields
+      Object.entries(formData).forEach(([key, value]) => {
+        if (value !== null && value !== undefined) {
+          formDataToSend.append(key, value instanceof File ? value : String(value))
+        }
+      })
+
+      // Submit to API with better error handling
+      try {
+        const response = await fetch("/api/send-application-email", {
+          method: "POST",
+          body: formDataToSend,
+        })
+
+        const responseText = await response.text()
+        let data
+
+        try {
+          data = JSON.parse(responseText)
+        } catch (e) {
+          console.error("Failed to parse response as JSON:", responseText)
+          throw new Error(`Server returned invalid JSON: ${responseText.substring(0, 100)}...`)
+        }
+
+        if (!response.ok) {
+          throw new Error(data.error || `Server error: ${response.status} ${response.statusText}`)
+        }
+
+        if (!data.success) {
+          throw new Error(data.error || "Submission failed.")
+        }
+
+        // Proceed to confirmation after successful submission
+        setStep(9) // Success step
+      } catch (error) {
+        console.error("API call error:", error)
+        throw new Error(`Failed to submit application: ${error.message}`)
+      }
+    } catch (error) {
+      handleError(error)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    try {
+      setError(null)
+
+      // 1. Validate all form fields
+      const validationError = validateForm()
+      if (validationError) {
+        setError(validationError)
+        window.scrollTo(0, 0)
+        return
+      }
+
+      // 2. If payment is already verified, submit the form
+      if (paymentStatus.paid) {
+        submitFormAfterPayment(paymentStatus.reference)
+        return
+      }
+
+      // 3. If payment method is not selected, show error
+      if (formData.paymentMethod !== "paystack") {
+        setError("Please select Paystack as your payment method")
+        window.scrollTo(0, 0)
+        return
+      }
+
+      // 4. If we reach here, the form is valid but payment hasn't been made yet
+      // The actual payment will be initiated by the PaystackPayment component
+      setError("Please complete your payment to submit the application")
+      window.scrollTo(0, 0)
+    } catch (error) {
+      handleError(error)
+    }
+  }
+
+  const nextStep = () => {
+    try {
+      setStep((prev) => prev + 1)
+    } catch (error) {
+      handleError(error)
+    }
+  }
+
+  const prevStep = () => {
+    try {
+      setStep((prev) => prev - 1)
+    } catch (error) {
+      handleError(error)
+    }
+  }
+
+  // The rest of the component remains the same...
+  // (I'm keeping the JSX part the same as before since it's quite long)
 
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
@@ -154,7 +348,11 @@ export default function AdmissionPortal() {
           <div className="flex">
             <div className="flex-shrink-0">
               <svg className="h-5 w-5 text-red-500" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                <path
+                  fillRule="evenodd"
+                  d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                  clipRule="evenodd"
+                />
               </svg>
             </div>
             <div className="ml-3">
@@ -163,6 +361,42 @@ export default function AdmissionPortal() {
           </div>
         </div>
       )}
+
+      {/* Debug info for development */}
+      {debugInfo && process.env.NODE_ENV === "development" && (
+        <div className="max-w-4xl mx-auto mb-6 p-4 bg-gray-100 border border-gray-300 rounded">
+          <details>
+            <summary className="font-medium cursor-pointer">Debug Information</summary>
+            <pre className="mt-2 text-xs overflow-auto p-2 bg-gray-800 text-white rounded">
+              {JSON.stringify(debugInfo, null, 2)}
+            </pre>
+          </details>
+        </div>
+      )}
+
+      {/* Payment success message */}
+      {paymentStatus.paid && (
+        <div className="max-w-4xl mx-auto mb-6">
+          <Alert className="bg-green-50 border-green-500">
+            <AlertDescription className="text-green-700">
+              Payment successful! Your application will be processed after submission.
+            </AlertDescription>
+          </Alert>
+        </div>
+      )}
+
+      {/* Payment verification in progress */}
+      {paymentStatus.verifying && (
+        <div className="max-w-4xl mx-auto mb-6">
+          <Alert className="bg-blue-50 border-blue-500">
+            <AlertDescription className="text-blue-700 flex items-center">
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Verifying your payment...
+            </AlertDescription>
+          </Alert>
+        </div>
+      )}
+
       <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-md overflow-hidden">
         {/* Progress Bar */}
         <div className="px-6 pt-6">
@@ -172,19 +406,20 @@ export default function AdmissionPortal() {
                 <div
                   key={i}
                   className={`w-8 h-8 rounded-full flex items-center justify-center 
-                    ${i < step ? 'bg-[#c0b15f] text-white' :
-                      i === step ? 'bg-[#4e3f64] text-white' :
-                        'bg-gray-200 text-gray-600'}`}
+                    ${
+                      i < step
+                        ? "bg-[#c0b15f] text-white"
+                        : i === step
+                          ? "bg-[#4e3f64] text-white"
+                          : "bg-gray-200 text-gray-600"
+                    }`}
                 >
                   {i}
                 </div>
               ))}
             </div>
             <div className="w-full bg-gray-200 rounded-full h-2.5">
-              <div
-                className="bg-[#4e3f64] h-2.5 rounded-full"
-                style={{ width: `${(step / 8) * 100}%` }}
-              ></div>
+              <div className="bg-[#4e3f64] h-2.5 rounded-full" style={{ width: `${(step / 8) * 100}%` }}></div>
             </div>
           </div>
         </div>
@@ -202,6 +437,7 @@ export default function AdmissionPortal() {
                   <li>Have scanned copies of your documents ready</li>
                   <li>Application takes about 15-20 minutes</li>
                   <li>You can save and return later</li>
+                  <li>Payment is required to complete your application</li>
                 </ul>
               </div>
 
@@ -242,7 +478,7 @@ export default function AdmissionPortal() {
                     value={formData.firstName}
                     onChange={handleChange}
                     required
-                    className="mt-1 block w-full border text-black border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none  "
+                    className="mt-1 block w-full border text-black border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none"
                   />
                 </div>
 
@@ -253,7 +489,8 @@ export default function AdmissionPortal() {
                     name="middleName"
                     value={formData.middleName}
                     onChange={handleChange}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 text-black focus:outline-none  "
+                    required
+                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 text-black focus:outline-none"
                   />
                 </div>
 
@@ -265,7 +502,7 @@ export default function AdmissionPortal() {
                     value={formData.lastName}
                     onChange={handleChange}
                     required
-                    className="mt-1 block text-black w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none  "
+                    className="mt-1 block text-black w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none"
                   />
                 </div>
 
@@ -277,7 +514,7 @@ export default function AdmissionPortal() {
                     value={formData.dob}
                     onChange={handleChange}
                     required
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none text-black "
+                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none text-black"
                   />
                 </div>
 
@@ -288,7 +525,7 @@ export default function AdmissionPortal() {
                     value={formData.gender}
                     onChange={handleChange}
                     required
-                    className="mt-1 block w-full border text-black border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none  "
+                    className="mt-1 block w-full border text-black border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none"
                   >
                     <option value="">Select Gender</option>
                     <option value="male">Male</option>
@@ -305,7 +542,7 @@ export default function AdmissionPortal() {
                     value={formData.nationality}
                     onChange={handleChange}
                     required
-                    className="mt-1 block w-full border border-gray-300 text-black rounded-md shadow-sm py-2 px-3 focus:outline-none  "
+                    className="mt-1 block w-full border border-gray-300 text-black rounded-md shadow-sm py-2 px-3 focus:outline-none"
                   />
                 </div>
 
@@ -317,7 +554,7 @@ export default function AdmissionPortal() {
                     value={formData.stateOfOrigin}
                     onChange={handleChange}
                     required
-                    className="mt-1 block w-full border border-gray-300 rounded-md text-black shadow-sm py-2 px-3 focus:outline-none  "
+                    className="mt-1 block w-full border border-gray-300 rounded-md text-black shadow-sm py-2 px-3 focus:outline-none"
                   />
                 </div>
 
@@ -329,7 +566,7 @@ export default function AdmissionPortal() {
                     onChange={handleChange}
                     required
                     rows={3}
-                    className="mt-1 block w-full border text-black border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none  "
+                    className="mt-1 block w-full border text-black border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none"
                   />
                 </div>
 
@@ -341,7 +578,7 @@ export default function AdmissionPortal() {
                     value={formData.email}
                     onChange={handleChange}
                     required
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none text-black "
+                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none text-black"
                   />
                 </div>
 
@@ -353,7 +590,7 @@ export default function AdmissionPortal() {
                     value={formData.phone}
                     onChange={handleChange}
                     required
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none text-black "
+                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none text-black"
                   />
                 </div>
 
@@ -386,7 +623,7 @@ export default function AdmissionPortal() {
                     value={formData.highestEducation}
                     onChange={handleChange}
                     required
-                    className="mt-1 block w-full border text-black border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none  "
+                    className="mt-1 block w-full border text-black border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none"
                   >
                     <option value="">Select Level</option>
                     <option value="high-school">High School (WAEC/NECO)</option>
@@ -402,7 +639,7 @@ export default function AdmissionPortal() {
                     value={formData.previousInstitutions}
                     onChange={handleChange}
                     required
-                    className="mt-1 block w-full border border-gray-300 rounded-md text-black shadow-sm py-2 px-3 focus:outline-none  "
+                    className="mt-1 block w-full border border-gray-300 rounded-md text-black shadow-sm py-2 px-3 focus:outline-none"
                   />
                 </div>
 
@@ -416,7 +653,7 @@ export default function AdmissionPortal() {
                     required
                     min="1900"
                     max={new Date().getFullYear()}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none text-black "
+                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none text-black"
                   />
                 </div>
 
@@ -440,7 +677,7 @@ export default function AdmissionPortal() {
                     value={formData.certifications}
                     onChange={handleChange}
                     rows={3}
-                    className="mt-1 block w-full border border-gray-300 text-black rounded-md shadow-sm py-2 px-3 focus:outline-none  "
+                    className="mt-1 block w-full border border-gray-300 text-black rounded-md shadow-sm py-2 px-3 focus:outline-none"
                     placeholder="List any additional certifications"
                   />
                 </div>
@@ -461,7 +698,7 @@ export default function AdmissionPortal() {
                     value={formData.desiredCourse}
                     onChange={handleChange}
                     required
-                    className="mt-1 block w-full text-black border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none  "
+                    className="mt-1 block w-full text-black border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none"
                   >
                     <option value="">Select Course</option>
                     <option value="computer-science">Computer Science</option>
@@ -483,6 +720,20 @@ export default function AdmissionPortal() {
                     <option value="biochemistry">Biochemistry</option>
                   </select>
                 </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Desired Program *</label>
+                  <select
+                    name="desiredProgram"
+                    value={formData.desiredProgram}
+                    onChange={handleChange}
+                    required
+                    className="mt-1 block w-full text-black border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none"
+                  >
+                    <option value="">Select Program</option>
+                    <option value="Diploma">Diploma</option>
+                    <option value="Bachelor's Degree">Bachelor's Degree</option>
+                  </select>
+                </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Mode of Study *</label>
@@ -492,26 +743,22 @@ export default function AdmissionPortal() {
                         type="radio"
                         name="studyMode"
                         value="full-time"
-                        checked={formData.studyMode === 'full-time'}
+                        checked={formData.studyMode === "full-time"}
                         onChange={handleChange}
-                        className=" h-4 w-4 text-[#4e3f64] border-gray-300"
+                        className="h-4 w-4 text-[#4e3f64] border-gray-300"
                       />
-                      <label className="ml-3 block text-sm font-medium text-gray-700">
-                        Full-time
-                      </label>
+                      <label className="ml-3 block text-sm font-medium text-gray-700">Full-time</label>
                     </div>
                     <div className="flex items-center">
                       <input
                         type="radio"
                         name="studyMode"
                         value="distance"
-                        checked={formData.studyMode === 'distance'}
+                        checked={formData.studyMode === "distance"}
                         onChange={handleChange}
-                        className=" h-4 w-4 text-[#4e3f64] border-gray-300"
+                        className="h-4 w-4 text-[#4e3f64] border-gray-300"
                       />
-                      <label className="ml-3 block text-sm font-medium text-gray-700">
-                        Distance Learning
-                      </label>
+                      <label className="ml-3 block text-sm font-medium text-gray-700">Distance Learning</label>
                     </div>
                   </div>
                 </div>
@@ -533,7 +780,8 @@ export default function AdmissionPortal() {
                     name="guardianName"
                     value={formData.guardianName}
                     onChange={handleChange}
-                    className="mt-1 block text-black w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none  "
+                    required
+                    className="mt-1 block text-black w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none"
                   />
                 </div>
 
@@ -544,7 +792,8 @@ export default function AdmissionPortal() {
                     name="guardianRelationship"
                     value={formData.guardianRelationship}
                     onChange={handleChange}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none text-black "
+                    required
+                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none text-black"
                   />
                 </div>
 
@@ -555,7 +804,8 @@ export default function AdmissionPortal() {
                     name="guardianPhone"
                     value={formData.guardianPhone}
                     onChange={handleChange}
-                    className="mt-1 block w-full border border-gray-300 text-black rounded-md shadow-sm py-2 px-3 focus:outline-none  "
+                    required
+                    className="mt-1 block w-full border border-gray-300 text-black rounded-md shadow-sm py-2 px-3 focus:outline-none"
                   />
                 </div>
 
@@ -566,7 +816,8 @@ export default function AdmissionPortal() {
                     name="guardianEmail"
                     value={formData.guardianEmail}
                     onChange={handleChange}
-                    className="mt-1 block w-full text-black border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none  "
+                    required
+                    className="mt-1 block w-full text-black border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none"
                   />
                 </div>
 
@@ -577,7 +828,8 @@ export default function AdmissionPortal() {
                     value={formData.guardianAddress}
                     onChange={handleChange}
                     rows={3}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none text-black  "
+                    required
+                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none text-black"
                   />
                 </div>
               </div>
@@ -596,7 +848,8 @@ export default function AdmissionPortal() {
                     name="heardAboutUs"
                     value={formData.heardAboutUs}
                     onChange={handleChange}
-                    className="mt-1 block w-full border text-black border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none  "
+                    required
+                    className="mt-1 block w-full border text-black border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none"
                   >
                     <option value="">Select Option</option>
                     <option value="social-media">Social Media</option>
@@ -614,7 +867,8 @@ export default function AdmissionPortal() {
                     value={formData.specialNeeds}
                     onChange={handleChange}
                     rows={3}
-                    className="mt-1 text-black block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none  "
+                    required
+                    className="mt-1 text-black block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none"
                     placeholder="Please describe any special needs or accommodations required"
                   />
                 </div>
@@ -645,7 +899,7 @@ export default function AdmissionPortal() {
                       checked={formData.agreeTerms}
                       onChange={handleChange}
                       required
-                      className=" h-4 w-4 text-[#000000] border-gray-300 rounded"
+                      className="h-4 w-4 text-[#000000] border-gray-300 rounded"
                     />
                   </div>
                   <div className="ml-3 text-sm">
@@ -663,20 +917,20 @@ export default function AdmissionPortal() {
                   onChange={handleChange}
                   required
                   placeholder="Type your full name as signature"
-                  className="mt-1 block text-black w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none  "
+                  className="mt-1 block text-black w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none"
                 />
                 <p className="mt-1 text-sm text-gray-500">Your typed name serves as your electronic signature</p>
               </div>
             </div>
           )}
 
-          {/* Step 8: Payment */}
+          {/* Step 8: Payment - Modified for Paystack */}
           {step === 8 && (
             <div className="space-y-6">
               <h2 className="text-2xl font-bold text-gray-800">Payment Information</h2>
 
               <div className="bg-yellow-50 p-4 rounded-lg">
-                <h3 className="text-lg font-semibold text-yellow-800 mb-2">Application Fee: $50</h3>
+                <h3 className="text-lg font-semibold text-yellow-800 mb-2">Application Fee: ₦20,000</h3>
                 <p className="text-gray-700">Payment is required to process your application.</p>
               </div>
 
@@ -686,57 +940,65 @@ export default function AdmissionPortal() {
                   <div className="flex items-center">
                     <input
                       type="radio"
-                      id="credit-card"
+                      id="paystack"
                       name="paymentMethod"
-                      value="credit-card"
-                      checked={formData.paymentMethod === 'credit-card'}
+                      value="paystack"
+                      checked={formData.paymentMethod === "paystack"}
                       onChange={handleChange}
-                      className=" h-4 w-4 text-[#4e3f64] border-gray-300"
+                      className="h-4 w-4 text-[#4e3f64] border-gray-300"
                     />
-                    <label htmlFor="credit-card" className="ml-3 block text-sm font-medium text-gray-700">
-                      Credit/Debit Card (Not Available )
+                    <label htmlFor="paystack" className="ml-3 block text-sm font-medium text-gray-700">
+                      Pay with Paystack (Credit/Debit Card, Bank Transfer)
                     </label>
-                  </div>
-                  <div className="flex items-center">
-                    <input
-                      type="radio"
-                      id="bank-transfer"
-                      name="paymentMethod"
-                      value="bank-transfer"
-                      checked={formData.paymentMethod === 'bank-transfer'}
-                      onChange={handleChange}
-                      className=" h-4 w-4 text-[#4e3f64] border-gray-300"
-                    />
-                    <label htmlFor="bank-transfer" className="ml-3 block text-sm font-medium text-gray-700">
-                      Bank Transfer
-                    </label>
+                    
                   </div>
                 </div>
               </div>
 
-              {formData.paymentMethod === 'bank-transfer' && (
+              {formData.paymentMethod === "paystack" && (
                 <div className="bg-blue-50 p-4 rounded-lg">
-                  <h3 className="text-lg font-semibold text-[#4e3f64] mb-2">Bank Transfer Details</h3>
-                  <div className="space-y-2  text-black text-sm">
-                    <p><span className="font-medium">Bank Name:</span> University Trust Bank</p>
-                    <p><span className="font-medium">Account Name:</span> University Admissions</p>
-                    <p><span className="font-medium">Account Number:</span> 1234567890</p>
-                    <p><span className="font-medium">Sort Code:</span> 04-00-04</p>
-                    <p><span className="font-medium">Reference:</span> Your Application ID</p>
-                  </div>
+                  <h3 className="text-lg font-semibold text-[#4e3f64] mb-4">Complete Payment</h3>
 
-                  <div className="mt-4">
-                    <label className="block text-sm font-medium text-gray-700">Upload Payment Proof *</label>
-                    <input
-                      type="file"
-                      name="paymentProof"
-                      onChange={handleChange}
-                      required={formData.paymentMethod === 'bank-transfer'}
-                      accept=".pdf,.jpg,.jpeg,.png"
-                      className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-[#4e3f64] hover:file:bg-blue-100"
-                    />
-                    <p className="mt-1 text-sm text-gray-500">Upload proof of bank transfer (5MB max)</p>
-                  </div>
+                  {!paymentStatus.paid ? (
+                    <div className="space-y-4">
+                      <p className="text-gray-700 mb-4">
+                        Click the button below to make your payment securely via Paystack.
+                      </p>
+
+                      <PaystackPayment
+                        email={formData.email || ""}
+                        amount={2000000} // ₦20,000 in kobo
+                        name={`${formData.firstName} ${formData.lastName}`}
+                        phone={formData.phone || ""}
+                        onSuccess={handlePaystackSuccess}
+                        onClose={handlePaystackClose}
+                        disabled={!formData.email || !formData.firstName || !formData.lastName}
+                        validateForm={validateForm}
+                      />
+
+                      {(!formData.email || !formData.firstName || !formData.lastName) && (
+                        <p className="text-sm text-red-600 mt-2">
+                          Please fill in your name and email address in the Personal Information section before making
+                          payment.
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                      <div className="flex items-center">
+                        <svg
+                          className="h-6 w-6 text-green-500 mr-2"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                        <p className="text-green-700 font-medium">Payment Completed Successfully!</p>
+                      </div>
+                      <p className="mt-2 text-gray-600">Reference: {paymentStatus.reference}</p>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -748,7 +1010,7 @@ export default function AdmissionPortal() {
               <button
                 type="button"
                 onClick={prevStep}
-                className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 "
+                className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2"
               >
                 Previous
               </button>
@@ -760,7 +1022,7 @@ export default function AdmissionPortal() {
               <button
                 type="button"
                 onClick={nextStep}
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-[#4e3f64] hover:bg-[#4e3f64] focus:outline-none focus:ring-2 focus:ring-offset-2 "
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-[#4e3f64] hover:bg-[#4e3f64] focus:outline-none focus:ring-2 focus:ring-offset-2"
               >
                 Next
               </button>
@@ -768,12 +1030,21 @@ export default function AdmissionPortal() {
               <button
                 type="submit"
                 className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-[#c0b15f] hover:bg-[#c0b15f] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:bg-[#c0b15f]"
-                disabled={isSubmitting}
+                disabled={isSubmitting || (!paymentStatus.paid && formData.paymentMethod === "paystack")}
               >
-                {isSubmitting ? 'Submitting...' : 'Submit Application'}
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Submitting...
+                  </>
+                ) : (
+                  "Submit Application"
+                )}
               </button>
             )}
           </div>
+
+          {/* Success Step */}
           {step === 9 && (
             <div className="p-6 text-center">
               <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-100 mb-4">
@@ -784,10 +1055,11 @@ export default function AdmissionPortal() {
               <h2 className="text-2xl font-bold text-gray-800 mb-2">Application Submitted!</h2>
               <p className="text-gray-600 mb-6">
                 We've sent a confirmation to {formData.email}.
-                <br />Our admissions team will contact you shortly.
+                <br />
+                Our admissions team will contact you shortly.
               </p>
               <button
-                onClick={() => router.push('/confirmation')}
+                onClick={() => router.push("/confirmation")}
                 className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-[#4e3f64] hover:bg-[#4e3f64] focus:outline-none focus:ring-2 focus:ring-offset-2"
               >
                 View Confirmation Details
@@ -797,5 +1069,5 @@ export default function AdmissionPortal() {
         </form>
       </div>
     </div>
-  );
+  )
 }
