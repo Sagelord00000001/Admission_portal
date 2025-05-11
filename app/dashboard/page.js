@@ -718,6 +718,8 @@ export default function AdmissionPortal() {
                     <option value="medical-laboratory">Medical Laboratory Science</option>
                     <option value="microbiology">Microbiology</option>
                     <option value="biochemistry">Biochemistry</option>
+                    <option value="marketing">marketing </option>
+                    <option value="nursing">nursing</option>
                   </select>
                 </div>
                 <div>
