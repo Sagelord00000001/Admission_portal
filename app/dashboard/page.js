@@ -718,8 +718,8 @@ export default function AdmissionPortal() {
                     <option value="medical-laboratory">Medical Laboratory Science</option>
                     <option value="microbiology">Microbiology</option>
                     <option value="biochemistry">Biochemistry</option>
-                    <option value="marketing">marketing </option>
-                    <option value="nursing">nursing</option>
+                    <option value="marketing">Marketing </option>
+                    <option value="nursing">Nursing</option>
                   </select>
                 </div>
                 <div>
@@ -969,7 +969,7 @@ export default function AdmissionPortal() {
 
                       <PaystackPayment
                         email={formData.email || ""}
-                        amount={2000000} // ₦20,000 in kobo
+                        amount={10000} // ₦20,000 in kobo
                         name={`${formData.firstName} ${formData.lastName}`}
                         phone={formData.phone || ""}
                         onSuccess={handlePaystackSuccess}
